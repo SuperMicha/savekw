@@ -1,0 +1,104 @@
+generator client {
+  provider      = "prisma-client-js"
+  engineType    = "binary"
+  binaryTargets = ["native", "debian-openssl-3.0.x", "debian-openssl-1.1.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String    @id @db.Uuid
+  email            String    @unique
+  emailConfirmedAt DateTime? @map("email_confirmed_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  isAdmin          Boolean   @default(false) @map("is_admin")
+  isBlocked        Boolean   @default(false) @map("is_blocked")
+  lastLoginAt      DateTime? @map("last_login_at") @db.Timestamptz(6)
+
+  @@map("users")
+}
+
+model UserProperties {
+  id        String   @id @default(cuid())
+  userId    String
+  property  String
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, property])
+  @@index([userId])
+  @@index([property])
+}
+
+model Equipment {
+  id         String   @id @default(cuid())
+  name       String
+  type       String
+  properties Json     @default("{}")
+  imageData  String?
+  imageName  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("equipment")
+}
+
+model SystemSettings {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
+  @@map("system_settings")
+}
+
+model DeviceStatus {
+  id                BigInt   @id @default(autoincrement())
+  created_at        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user_id           String   @map("user_id")
+  device_type       String   @map("device_type")
+  device_id         String?  @map("device_id")
+  status            String?
+  last_control_time String?  @map("last_control_time")
+
+  @@unique([user_id, device_type, device_id], map: "device_statuses_user_device_unique")
+  @@map("device_statuses")
+}
+
+model SystemLog {
+  id            BigInt   @id @default(autoincrement())
+  dateTime      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  userId        String?  @map("userid")
+  source        String?
+  type          String?
+  valueName     String?  @map("valuename")
+  previousValue String?  @map("previousvalue")
+  currentValue  String?  @map("currentvalue")
+
+  @@map("syslog")
+}
+
+model AlgorithmLog {
+  id           BigInt   @id @default(autoincrement())
+  timestamp    DateTime @default(now()) @db.Timestamptz(6)
+  algorithm    String
+  level        String   // 'info' | 'warn' | 'error' | 'debug'
+  message      String   @db.Text
+  userId       String?  @map("user_id")
+  executionId  String?  @map("execution_id")
+  metadata     String?  @db.Text // JSON string
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([algorithm])
+  @@index([level])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("algorithm_logs")
+}

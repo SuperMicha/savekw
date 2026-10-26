@@ -1,0 +1,84 @@
+version: "3.8"
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: savekw_postgres
+    restart: unless-stopped
+    environment:
+      TZ: Europe/Kyiv
+      POSTGRES_USER: savekw
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: savekw_prod
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups # Для удобства backup/restore
+    ports:
+      - "127.0.0.1:5432:5432" # Доступ только с локалхоста
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U savekw -d savekw_prod"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - savekw_network
+
+  # Next.js Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        DATABASE_URL: ${DATABASE_URL}
+        DIRECT_URL: ${DIRECT_URL}
+        NEXT_PUBLIC_HCAPTCHA_SITE_KEY: ${NEXT_PUBLIC_HCAPTCHA_SITE_KEY}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+        GIT_SHA: ${GIT_SHA:-unknown}
+        GIT_DATE: ${GIT_DATE:-unknown}
+    container_name: savekw_app
+    restart: unless-stopped
+    environment:
+      TZ: Europe/Kyiv
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL}
+      DIRECT_URL: ${DIRECT_URL}
+      NEXT_PUBLIC_HCAPTCHA_SITE_KEY: ${NEXT_PUBLIC_HCAPTCHA_SITE_KEY}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      PORT: 3000
+      HOSTNAME: "0.0.0.0"
+    ports:
+      - "127.0.0.1:3000:3000" # Доступ только через Nginx
+    volumes:
+      - /root/savekw2/backups:/root/savekw2/backups
+      - /root/savekw2/scripts:/root/savekw2/scripts:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - savekw_network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://localhost:3000/api/trpc/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  savekw_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
