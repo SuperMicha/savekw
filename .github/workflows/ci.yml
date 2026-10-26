@@ -39,3 +39,8 @@ jobs:
         run: npm run build
         env:
           SKIP_ENV_VALIDATION: true
+          # NEXT_PUBLIC_* values are inlined into the client bundle at build
+          # time, so the build needs *some* value. These are placeholders —
+          # a real deployment must supply its own.
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key

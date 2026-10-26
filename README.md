@@ -272,7 +272,9 @@ useful inside Docker builds.
 | `NODE_ENV` | no | `development` / `production` / `test` |
 
 Anything prefixed `NEXT_PUBLIC_` is bundled into the client and is **public by definition** —
-never put a secret behind that prefix.
+never put a secret behind that prefix. It also means `NEXT_PUBLIC_SUPABASE_URL` and
+`NEXT_PUBLIC_SUPABASE_ANON_KEY` must be set at **build** time, not just at runtime: `npm run build`
+prerenders pages that construct a Supabase client and will fail without them.
 
 Only `.env.example` belongs in version control. Every other `.env*` file holds real credentials
 and is git-ignored.
